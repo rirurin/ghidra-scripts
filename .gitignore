@@ -205,3 +205,6 @@
 **/ghidra_scripts/metaphor-functions.py
 **/ghidra_scripts/PdbGen.java
 **/ghidra_scripts/MetaphorReadFunctions.java
+**/ghidra_scripts/UnrealExportVTables.java
+**/ghidra_scripts/UnrealImportVTables.java
+**/output
