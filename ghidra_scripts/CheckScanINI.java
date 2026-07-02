@@ -10,7 +10,9 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -39,7 +41,8 @@ public class CheckScanINI extends GhidraScript {
 	private static Address CodeStart;
 	private static Address CodeEnd;
 	
-	private static ConcurrentLinkedQueue<ScanFail> Failed;
+	//private static ConcurrentLinkedQueue<ScanFail> Failed;
+	private static ConcurrentMap<String, String> NotFound;
 	
 	public class Signature {
 		public byte[] search;
@@ -183,7 +186,8 @@ public class CheckScanINI extends GhidraScript {
 		var iniConfig = new INIConfiguration();
 		var scanIni = askFile("Select the Scan INI file (scans.ini)", "OK");
 		HashMap<String, ScanIniEntry> Signatures = new HashMap<>();
-		Failed = new ConcurrentLinkedQueue<>();
+		//Failed = new ConcurrentLinkedQueue<>();
+		NotFound = new ConcurrentHashMap<>();
 		
 		var expressionConfig = ExpressionConfiguration.defaultConfiguration()
 				.withAdditionalFunctions(
@@ -211,12 +215,14 @@ public class CheckScanINI extends GhidraScript {
 			Signatures.forEach((name, value) -> {
 				executor.submit(() -> {
 					var searcher = new SignatureSearch(name, new Signature(value.Bytes), value.Transform);
+					NotFound.put(name, value.Bytes);
 					try {
 						var address = searcher.search();
 						if (address != null) {
 							println("Found " + name + " at " + address.toString());
+							NotFound.remove(name);
 						} else {
-							Failed.add(new ScanFail(name, value.Bytes));
+							//Failed.add(new ScanFail(name, value.Bytes));
 						}
 					} catch (ParseException | EvaluationException e) {
 						throw new IllegalArgumentException("Error while evaluating expression for " + name + " : " + e.getMessage());
@@ -225,12 +231,13 @@ public class CheckScanINI extends GhidraScript {
 			});
 		}
 		println("==================================");
-		if (Failed.isEmpty()) {
+		if (NotFound.isEmpty()) {
 			println("All signatures were found!");
 		} else {
-			println("Found " + Failed.size() + " broken signatures:");
-			for (var fail : Failed) {
-				println(fail.Name + " : " + fail.Bytes);
+			println("Found " + NotFound.size() + " broken signatures:");
+			for (var fail : NotFound.entrySet()) {
+				//println(fail.Name + " : " + fail.Bytes);
+				println(fail.getKey() + " : " + fail.getValue());
 			}	
 		}
 	}
