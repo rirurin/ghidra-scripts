@@ -6,9 +6,12 @@
 //@toolbar
 
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,7 +40,8 @@ public class CheckUnrealEssentialsScans extends GhidraScript {
 	private static Address CodeStart;
 	private static Address CodeEnd;
 	
-	private static ConcurrentLinkedQueue<ScanFail> Failed;
+	//private static ConcurrentLinkedQueue<ScanFail> Failed;
+	//private static HashMap<String, Integer> CandidateCount;
 	
 	public class Signature {
 		public byte[] search;
@@ -93,6 +97,10 @@ public class CheckUnrealEssentialsScans extends GhidraScript {
 					true,
 					monitor
 			);
+			if (start == null) {
+				targetAddress = start;
+				return targetAddress;
+			}
 			if (this.transform != null) {
 				EvaluationValue result = this.transform
 						.with("result", start.getOffset())
@@ -208,7 +216,9 @@ public class CheckUnrealEssentialsScans extends GhidraScript {
 						Map.entry("GetGlobalAddress", new GetGlobalAddressFunction())
 						);
 		
-		Failed = new ConcurrentLinkedQueue<>();
+		//Failed = new ConcurrentLinkedQueue<>();
+		//HashMap<String, Integer> CandidateCount = new HashMap<>();
+		ConcurrentHashMap<String, LinkedList<String>> SelectedCandidate = new ConcurrentHashMap<>();
 		try (var reader = new YamlReader(new FileReader(scanYaml))) {
 			@SuppressWarnings("unchecked")
 			var object = (HashMap<String, Object>)reader.read();
@@ -216,16 +226,37 @@ public class CheckUnrealEssentialsScans extends GhidraScript {
 			var sigList = (HashMap<String, Object>)object.get("Signatures");
 			if (sigList != null) {
 				for (var sigEntry : sigList.entrySet()) {
-					var className = sigEntry.getValue().getClass().getName();
-					if (className.equals("java.lang.String")) {
+					SelectedCandidate.put(sigEntry.getKey(), new LinkedList<>());
+					if (sigEntry.getValue() instanceof String) {
 						Signatures.put(sigEntry.getKey(), new ScanIniEntry((String)sigEntry.getValue()));
-					} else if (className.equals("java.util.LinkedHashMap")) {
+					}	
+					else if (sigEntry.getValue().getClass().getName().equals("java.util.LinkedHashMap")) {
 						@SuppressWarnings("unchecked")
 						var entryMap = (HashMap<String, Object>)sigEntry.getValue();
-						Signatures.put(sigEntry.getKey(), new ScanIniEntry(
-								(String)entryMap.get("signatures"), 
-								fromUnrealEssentialsTransform((String)entryMap.get("transforms"), expressionConfig)
-								));
+						var signatures = entryMap.get("signatures");
+						var signatureClass = signatures.getClass().getName();
+						if (signatures instanceof String) {
+							Signatures.put(sigEntry.getKey(), new ScanIniEntry((String)signatures, 
+									fromUnrealEssentialsTransform((String)entryMap.get("transforms"), expressionConfig)
+									));
+							//CandidateCount.put(sigEntry.getKey(), 1);
+						} else if (signatureClass.equals("java.util.ArrayList")) {
+							//println("TODO: " + sigEntry.getKey());
+							@SuppressWarnings("unchecked")
+							var signatureList = (ArrayList<String>)signatures;
+							@SuppressWarnings("unchecked")
+							var transformList = (ArrayList<String>)entryMap.get("transforms");
+							if (signatureList.size() != transformList.size()) {
+								throw new IllegalArgumentException("Signature list and transform list must be the same size for " + sigEntry.getKey());
+							}
+							//CandidateCount.put(sigEntry.getKey(), signatureList.size());
+							for (var i = 0; i < signatureList.size(); i++) {
+								var keyName = sigEntry.getKey() + "[" + i + "]";
+								Signatures.put(keyName, new ScanIniEntry(signatureList.get(i), 
+										fromUnrealEssentialsTransform(transformList.get(i), expressionConfig)
+										));
+							}
+						}
 					}
 				}
 			}
@@ -239,9 +270,11 @@ public class CheckUnrealEssentialsScans extends GhidraScript {
 						var address = searcher.search();
 						if (address != null) {
 							println("Found " + name + " at " + address.toString());
-						} else {
+							var nameTrimmed = name.split("\\[\\d+\\]")[0];
+							SelectedCandidate.get(nameTrimmed).add(value.Bytes);
+						} /*else {
 							Failed.add(new ScanFail(name, value.Bytes));
-						}
+						}*/
 					} catch (ParseException | EvaluationException e) {
 						throw new IllegalArgumentException("Error while evaluating expression for " + name + " : " + e.getMessage());
 					}
@@ -249,6 +282,29 @@ public class CheckUnrealEssentialsScans extends GhidraScript {
 			});
 		}
 		println("==================================");
+		var failList = new LinkedList<String>();
+		for (var candidateEntry : SelectedCandidate.entrySet()) {
+			switch (candidateEntry.getValue().size()) {
+				case 0:
+					failList.add("Could not find " + candidateEntry.getKey());
+					break;
+				case 1:
+					break;
+				default:
+					failList.add("Found conflicting signatures: " + String.join(", ", candidateEntry.getValue()));
+					break;
+			}
+		}
+		if (failList.isEmpty()) {
+			println("All signatures were found!");
+		} else {
+			println("Found " + failList.size() + " issue" + (failList.size() == 1 ? ":" : "s:"));
+			for (var fail : failList) {
+				println(fail);
+			}	
+		}
+		
+		/*
 		if (Failed.isEmpty()) {
 			println("All signatures were found!");
 		} else {
@@ -257,5 +313,6 @@ public class CheckUnrealEssentialsScans extends GhidraScript {
 				println(fail.Name + " : " + fail.Bytes);
 			}	
 		}
+		*/
 	}
 }
