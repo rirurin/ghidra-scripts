@@ -208,6 +208,4 @@
 **/ghidra_scripts/UnrealExportVTables.java
 **/ghidra_scripts/UnrealImportVTables.java
 **/ghidra_scripts/UnrealImportShaderMetadata.java
-**/ghidra_scripts/CreateFlowscriptLibrary.java
 **/output
-**/signatures
