@@ -16,7 +16,7 @@ import ghidra.program.model.symbol.Namespace;
 import ghidra.program.model.symbol.SymbolTable;
 import ghidra.util.exception.NotFoundException;
 
-public class VTableMethodsAsYAML extends GhidraScript {
+public class UObjectVTableMethodsAsYAML extends GhidraScript {
 	
 	private static Listing GListing;
 	private static SymbolTable GSymbol;
@@ -41,7 +41,7 @@ public class VTableMethodsAsYAML extends GhidraScript {
 		if (targetNamespace == null) {
 			throw new NotFoundException("Could not find a vtable symbol at this address");
 		}
-		println(targetNamespace.getName() + "_VTable:");
+		println("UObject_VTable:");
 		var addressCursor = currentAddress;
 		Data currentPtr = null;
 		var duplicates = new HashMap<String, Integer>();
@@ -50,7 +50,7 @@ public class VTableMethodsAsYAML extends GhidraScript {
 			addressCursor = addressCursor.add(8);
 			if (!currentPtr.isPointer()) break;
 			Function currentFunc = getOrCreateFunction(toAddr(currentPtr.getValue().toString()));
-			if (!currentFunc.getParentNamespace().equals(targetNamespace)) continue;
+			if (!currentFunc.getParentNamespace().toString().startsWith("UObject")) continue;
 			var duplicate = duplicates.get(currentFunc.getName());
 			if (duplicate != null) {
 				duplicates.put(currentFunc.getName(), duplicate + 1);
