@@ -35,7 +35,8 @@ public class UObjectVTableMethodsAsYAML extends GhidraScript {
 		var symbolsAtStart = GSymbol.getSymbols(currentAddress);
 		Namespace targetNamespace = null;
 		for (var symbol : symbolsAtStart) {
-			if (!symbol.getName().equals("vtable") && !symbol.getName().equals("`vftable'")) continue;
+			var symName = symbol.getName().split("\\{", 2)[0];
+			if (!symName.equals("vtable") && !symName.equals("`vftable'")) continue;
 			targetNamespace = symbol.getParentNamespace();
 		}
 		if (targetNamespace == null) {
