@@ -13,6 +13,7 @@ import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Listing;
 import ghidra.program.model.symbol.Namespace;
+import ghidra.program.model.symbol.Symbol;
 import ghidra.program.model.symbol.SymbolTable;
 import ghidra.util.exception.NotFoundException;
 
@@ -48,10 +49,26 @@ public class UObjectVTableMethodsAsYAML extends GhidraScript {
 		var duplicates = new HashMap<String, Integer>();
 		while (true) {
 			currentPtr = GListing.getDataAt(addressCursor);
+			var distance = addressCursor.subtract(currentAddress);
 			addressCursor = addressCursor.add(8);
-			if (!currentPtr.isPointer()) break;
-			Function currentFunc = getOrCreateFunction(toAddr(currentPtr.getValue().toString()));
-			if (!currentFunc.getParentNamespace().toString().startsWith("UObject")) continue;
+			if (!currentPtr.isPointer() || (distance > 0 && GSymbol.getSymbols(addressCursor.subtract(8)).length > 0)) break;
+			var funcAddr = toAddr(currentPtr.getValue().toString());
+			if (GListing.getDataAt(funcAddr) != null) break;
+			Function currentFunc = getOrCreateFunction(funcAddr);
+			if (!currentFunc.getParentNamespace().toString().startsWith("UObject")) {
+				/*
+				var funcSymbols = GSymbol.getSymbols(funcAddr);
+				Symbol uobjectSymbol = null;
+				for (var symbol : funcSymbols) {
+					if (symbol.getName().indexOf("@UObject@@") != -1) {
+						uobjectSymbol = symbol;
+						break;
+					}
+				}
+				if (uobjectSymbol == null) continue;
+				*/
+				continue;
+			}
 			var duplicate = duplicates.get(currentFunc.getName());
 			if (duplicate != null) {
 				duplicates.put(currentFunc.getName(), duplicate + 1);
@@ -59,7 +76,7 @@ public class UObjectVTableMethodsAsYAML extends GhidraScript {
 				duplicates.put(currentFunc.getName(), 2);
 			}
 			
-			println("\t" + currentFunc.getName() + (duplicate != null ? "_" + duplicate : "") + ": 0x" + Long.toHexString(addressCursor.subtract(currentAddress) - 8));
+			println("\t" + currentFunc.getName() + (duplicate != null ? "_" + duplicate : "") + ": 0x" + Long.toHexString(distance));
 		}
 	}
 }

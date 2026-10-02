@@ -48,10 +48,15 @@ public class VTableMethodsAsYAML extends GhidraScript {
 		var duplicates = new HashMap<String, Integer>();
 		while (true) {
 			currentPtr = GListing.getDataAt(addressCursor);
+			var distance = addressCursor.subtract(currentAddress);
 			addressCursor = addressCursor.add(8);
-			if (!currentPtr.isPointer()) break;
-			Function currentFunc = getOrCreateFunction(toAddr(currentPtr.getValue().toString()));
-			if (!currentFunc.getParentNamespace().equals(targetNamespace)) continue;
+			if (!currentPtr.isPointer() || (distance > 0 && GSymbol.getSymbols(addressCursor.subtract(8)).length > 0)) break;
+			var funcAddr = toAddr(currentPtr.getValue().toString());
+			if (GListing.getDataAt(funcAddr) != null) break;
+			Function currentFunc = getOrCreateFunction(funcAddr);
+			if (!currentFunc.getParentNamespace().equals(targetNamespace) 
+					|| currentFunc.getName().equals("`vector_deleting_destructor'")
+					|| currentFunc.getName().equals("`scalar_deleting_destructor'")) continue;
 			var duplicate = duplicates.get(currentFunc.getName());
 			if (duplicate != null) {
 				duplicates.put(currentFunc.getName(), duplicate + 1);
@@ -59,7 +64,7 @@ public class VTableMethodsAsYAML extends GhidraScript {
 				duplicates.put(currentFunc.getName(), 2);
 			}
 			
-			println("\t" + currentFunc.getName() + (duplicate != null ? "_" + duplicate : "") + ": 0x" + Long.toHexString(addressCursor.subtract(currentAddress) - 8));
+			println("\t" + currentFunc.getName() + (duplicate != null ? "_" + duplicate : "") + ": 0x" + Long.toHexString(distance));
 		}
 	}
 }
