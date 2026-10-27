@@ -23,8 +23,12 @@ Download the JAR file for each of these, then insert them into the folder `[GHID
 
 ## List of Scripts
 
+- `CheckMatchedSymbols.java`: Compares the memory address of labelled functions against a referenced object, with adjustments made for Unreal Engine projects. Used to check the accuracy of `UnrealGen` in [Unreal.ObjectDumpToJson](https://github.com/rirurin/Unreal.ObjectDumpToJson).
 - `CheckScanINI.java` : Checks the signatures stored in a [RyoTune.Reloaded](https://github.com/RyoTune/RyoTune.Reloaded/) formatted Scan INI file. For example, signatures in UE.Toolkit are defined using this format.
 - `CheckUnrealEssentialsScans.java`: Checks the signatures stored in an [UnrealEssentials](https://github.com/AnimatedSwine37/UnrealEssentials/) formatted Scan YAML file.
+- `CloneVTable.java`: Quickly copy the labels of a VTable from one project to another.
 - `makesig.py`: Creates a memory signature at the current instruction, updated for use in Ghidra 12.x. Running this requires you to start Ghidra by running `support/pyGhidraRun.bat`
+- `UObjectVTableMethodsAsYAML.java`: Specialized version of `VTableMethodsAsYAML` for `UObject`.
+- `VTableMethodsAsYAML.java`: Convert methods in vtable with the same namespace as the vtable into a list of offset values from the start of the vtable.
 
 Other scripts are either sample/test scripts or are incomplete.
