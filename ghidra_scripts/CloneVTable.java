@@ -94,11 +94,17 @@ public class CloneVTable extends GhidraScript {
 		var vtableNSName = askString("Specify VTable Namespace", "Namespace");
 		var vtableNamespace = refProgram.getSymbolTable().getNamespace(vtableNSName, null);
 		if (vtableNamespace == null) {
+			programManager.closeProgram(refProgram, true);
 			throw new IllegalArgumentException("Could not find the namespace " + vtableNSName);
 		}
 		var vtableSym = refProgram.getSymbolTable().getSymbols("`vftable'", vtableNamespace);
 		if (vtableSym.size() == 0) {
-			throw new IllegalArgumentException("Could not find the vtable for " + vtableNSName);
+			var customSymbolName = askString("Specify VTable Symbol Name", "Symbol Name");
+			vtableSym = refProgram.getSymbolTable().getSymbols(customSymbolName, vtableNamespace);
+			if (vtableSym.size() == 0) {				
+				programManager.closeProgram(refProgram, true);
+				throw new IllegalArgumentException("Could not find the vtable for " + vtableNSName);
+			}
 		}
 		var startAddress = vtableSym.get(0).getAddress();
 		var addressCursor = startAddress;
